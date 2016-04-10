@@ -8,14 +8,17 @@
 
 #define SECTOR 0x200
 
+typedef unsigned char BYTE;
+
+
 char out_buf[0x400];
 
-bool decode(char *encoded, char *key) 
+bool decode(BYTE *encoded, BYTE *key) 
 {
     int i, j;
     for (i = 0, j = 0; j < 32; i++, j+=2) {
-        char val = encoded[j];
-        char val2 = encoded[j+1];
+        BYTE val = encoded[j];
+        BYTE val2 = encoded[j+1];
         if (val == 0) break;
         if (val - 'z' != val2 / 2) {
             return false;
@@ -35,11 +38,10 @@ int stage1(FILE *fp)
     fread(encoded_key, 1, 32, fp);
 
     char outbuf[32];
-    if (decode(encoded_key, outbuf) == false) {
+    if (decode((BYTE*)encoded_key, (BYTE*)outbuf) == false) {
         printf("Cannot find the Stage1 key!\n");
         return -1;
     }
-
     if (strlen(outbuf) != 16) {
         printf("Invalid Stage1 key length!\n");
         return -2;
@@ -96,7 +98,7 @@ int main(int argc, char *argv[])
     }
     
     if (stage1(fp) == 0) {
-        printf("[OK] Stage 1 key recovered!");
+        printf("[OK] Stage 1 key recovered!\n");
         fclose(fp);
         return 0;
     }
