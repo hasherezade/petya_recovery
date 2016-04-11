@@ -53,7 +53,6 @@ int stage1(FILE *fp)
 void fetch_data(FILE *fp, const size_t offset, const size_t in_size)
 {
     char in_buf[in_size];
-    memset(in_buf, 0, in_size);
     fseek(fp, offset, SEEK_SET);
     size_t read = fread(in_buf, 1, in_size, fp);
     if (read != in_size) {
@@ -106,5 +105,6 @@ int main(int argc, char *argv[])
     printf("Paste this data to: https://petya-pay-no-ransom.herokuapp.com/\n");
     stage2(fp);
     fclose(fp);
+    return 0;
 }
 
