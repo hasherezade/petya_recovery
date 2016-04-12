@@ -14,7 +14,7 @@ char out_buf[0x400];
 
 bool check_pattern(FILE *fp, size_t offset, const char *cmp_buf, size_t cmp_size)
 {
-    //cmp_size = (cmp_size > sizeof(out_buf)) ? sizeof(out_buf) : cmp_size;
+    cmp_size = (cmp_size > sizeof(out_buf)) ? sizeof(out_buf) : cmp_size;
 
     fseek(fp, offset, SEEK_SET);
     size_t read = fread(out_buf, 1, cmp_size, fp);
@@ -76,11 +76,9 @@ int stage1(FILE *fp)
 
     char outbuf[32];
     if (decode((BYTE*)encoded_key, (BYTE*)outbuf) == false) {
-        printf("Cannot find the Stage1 key!\n");
         return -1;
     }
     if (strlen(outbuf) != 16) {
-        printf("Invalid Stage1 key! Probably the key has been already ereased!\n");
         return -2;
     }
     printf ("Key: %s\n", outbuf);
@@ -145,6 +143,8 @@ int main(int argc, char *argv[])
         fclose(fp);
         return 0;
     }
+
+    printf("Invalid Stage1 key! Probably the key has been already erased!\n");
     printf("Try to recover from Stage2 by third-party decoder!\n");
     printf("Paste this data to: https://petya-pay-no-ransom.herokuapp.com/\n");
     stage2(fp);
