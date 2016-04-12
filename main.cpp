@@ -146,7 +146,9 @@ int main(int argc, char *argv[])
 
     printf("Invalid Stage1 key! Probably the key has been already erased!\n");
     printf("Try to recover from Stage2 by third-party decoder!\n");
-    printf("Paste this data to: https://petya-pay-no-ransom.herokuapp.com/\n");
+    printf("Paste the data you got below on one of the following sites:\n");
+    printf("+ https://petya-pay-no-ransom.herokuapp.com/\n");
+    printf("+ https://petya-pay-no-ransom-mirror1.herokuapp.com/\n");
     stage2(fp);
     fclose(fp);
     return 0;
