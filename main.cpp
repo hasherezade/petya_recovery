@@ -4,9 +4,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <cinttypes>
 #include "base64.h"
+#include "decryptor.h"
+#include "types.h"
 
-#define SECTOR 0x200
 
 typedef unsigned char BYTE;
 
@@ -43,14 +45,14 @@ bool is_infected(FILE *fp)
     if (has_bootloader) printf("[+] Petya bootloader detected!\n");
 
     char http_pattern[] = "http://";
-    const size_t http_offset = 54 * SECTOR + 0x29;
+    const size_t http_offset = 54 * SECTOR_SIZE + 0x29;
     bool has_http = check_pattern(fp, http_offset, http_pattern, sizeof(http_pattern));
     if (has_http) printf("[+] Petya http address detected!\n");
 
     return has_bootloader || has_http;
 }
 
-bool decode(BYTE *encoded, BYTE *key) 
+bool decode(const BYTE *encoded, BYTE *key)
 {
     int i, j;
     for (i = 0, j = 0; j < 32; i++, j+=2) {
@@ -66,16 +68,10 @@ bool decode(BYTE *encoded, BYTE *key)
     return true;
 }
 
-int stage1(FILE *fp)
+int stage1(const OnionSector& os)
 {
-    size_t offset = 54 * SECTOR + 1;
-    fseek(fp, offset, SEEK_SET);
-
-    char encoded_key[33];
-    fread(encoded_key, 1, 32, fp);
-
-    char outbuf[32];
-    if (decode((BYTE*)encoded_key, (BYTE*)outbuf) == false) {
+    char outbuf[16];
+    if (!decode(os.key, (BYTE*)outbuf)) {
         return -1;
     }
     if (strlen(outbuf) != 16) {
@@ -85,37 +81,56 @@ int stage1(FILE *fp)
     return 0;
 }
 
-void fetch_data(FILE *fp, const size_t offset, const size_t in_size)
+bool fetch_veribuf(FILE *fp, ByteBuff& verifyBuff, size_t size)
 {
-    char in_buf[in_size];
-    fseek(fp, offset, SEEK_SET);
-    size_t read = fread(in_buf, 1, in_size, fp);
-    if (read != in_size) {
-        printf("Error, read = %d\n", read);
-        return;
+    verifyBuff.resize(size);
+    fseek(fp, CHECK_BUFFER_SECTOR_NUM * SECTOR_SIZE, SEEK_SET);
+
+    const size_t read = fread(&verifyBuff[0], size, 1, fp);
+    return read == 1;
+}
+
+int stage2(const ByteBuff& veribuf, const OnionSector& os)
+{
+    {
+        printf("\nverification data:\n");
+        Base64encode(out_buf, reinterpret_cast<const char*>(&veribuf[0]), SECTOR_SIZE);
+        printf("%s\n", out_buf);
     }
-    Base64encode(out_buf, in_buf, in_size);
-    printf("%s\n", out_buf);
+    {
+        printf("\nnonce:\n");
+        Base64encode(out_buf, reinterpret_cast<const char*>(os.iv), IV_LEN);
+        printf("%s\n", out_buf);
+    }
 }
 
-void fetch_veribuf(FILE *fp)
+bool check_onion_sector_is_no_need_to_brute(const OnionSector& os)
 {
-    size_t offset = 55 * SECTOR;
-    printf("\nverification data:\n");
-    fetch_data(fp, offset, SECTOR);
-}
+    char tmp = '\0';
+    switch (os.eEncrypted)
+    {
+    case OnionSector::ST_NotEncrypted:
+        // try to restore original key from onion sector
+        if (stage1(os) == 0) {
+            printf("[OK] Stage 1 key recovered!\n");
+            return true;
+        }
+        break;
 
-void fetch_nonce(FILE *fp)
-{
-    size_t offset = 54 * SECTOR + 0x21;
-    printf("\nnonce:\n");
-    fetch_data(fp, offset, 8);
-}
+    case OnionSector::ST_Encrypted:
+        return false;
 
-int stage2(FILE *fp)
-{
-    fetch_veribuf(fp);
-    fetch_nonce(fp);
+    case OnionSector::ST_Decrypted:
+        printf("Looks like your drive is decrypted. Would do you like to find the key anyway? <Y>/<n>:");
+        scanf("%c", &tmp);
+        if (tmp == '\r' || tmp == '\n' || tmp == 'y' || tmp == 'Y')
+            break;
+        return true;
+    default:
+        printf("[-] Invalid Petya state, you have the newest version, possibly\n");
+        break;
+    }
+    return false;
 }
 
 int main(int argc, char *argv[])
@@ -131,26 +146,47 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    OnionSector os;
+    fseek(fp, ONION_SECTOR_NUM * SECTOR_SIZE, SEEK_SET);
+    size_t read = fread(&os, sizeof(OnionSector), 1, fp);
+    if (read != 1) {
+        printf("[-] Unable to read OnionSector\n");
+        return -1;
+    }
+
     if (is_infected(fp)) {
         printf("[+] Petya FOUND on the disk!\n");
     } else {
         printf("[-] Petya not found on the disk!\n");
+        return -1;
     }
     printf("---\n");
 
-    if (stage1(fp) == 0) {
-        printf("[OK] Stage 1 key recovered!\n");
+    if (check_onion_sector_is_no_need_to_brute(os))
+    {
         fclose(fp);
         return 0;
     }
-
-    printf("Invalid Stage1 key! Probably the key has been already erased!\n");
-    printf("Try to recover from Stage2 by third-party decoder!\n");
-    printf("Paste the data you got below on one of the following sites:\n");
-    printf("+ https://petya-pay-no-ransom.herokuapp.com/\n");
-    printf("+ https://petya-pay-no-ransom-mirror1.herokuapp.com/\n");
-    stage2(fp);
+    ByteBuff verifyBuff(SECTOR_SIZE, 0);
+    fetch_veribuf(fp, verifyBuff, SECTOR_SIZE);
     fclose(fp);
+
+    char key[PLAIN_KEY_LENGTH + 1] = {};
+    printf("[+] Trying to decrypt... Please be patient...\n");
+
+    if (!decrypt(os.iv, verifyBuff, key, PLAIN_KEY_LENGTH))
+    {
+        printf("[-] decrypt() failed\n");
+
+        // printf("Invalid Stage1 key! Probably the key has been already erased!\n");
+        printf("Try to recover from Stage2 by third-party decoder!\n");
+        printf("Paste the data you got below on one of the following sites:\n");
+        printf("+ https://petya-pay-no-ransom.herokuapp.com/\n");
+        printf("+ https://petya-pay-no-ransom-mirror1.herokuapp.com/\n");
+        stage2(verifyBuff, os);
+        return 0;
+    }
+
     return 0;
 }
 
