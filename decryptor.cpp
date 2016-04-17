@@ -391,11 +391,11 @@ public:
         {
             if (bf[i] != '7')
             {
-                std::cerr << "[-] invalid key\n";
+                printf("[-] invalid key\n");
                 return false;
             }
         }
-        std::cout << "[+] Key is valid\n";
+        printf("[+] Key is valid\n");
         return true;
     }
 
