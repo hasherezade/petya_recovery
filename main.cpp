@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
     char* filename = argv[1];
     FILE *fp = fopen(filename, "rb");
     if (fp == NULL) {
-        printf("Cannot open file\n");
+        printf("Cannot open file %s\n", filename);
         return -1;
     }
 
