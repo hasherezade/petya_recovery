@@ -1,4 +1,6 @@
-// Author: AlexWMF
+// Author of implementation: AlexWMF
+// Author of the idea: leo-stone
+// Genetic algorithm taken from https://github.com/handcraftsman/GeneticPy
 
 #include "decryptor.h"
 #include <iostream>
