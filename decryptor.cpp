@@ -367,7 +367,7 @@ public:
         if (ok)
             printf("[+] Your key is found: %s\n", result.c_str());
 
-        return true;
+        return ok;
     }
 
     bool verifyKey(const std::string& key, std::string* lpExpandedCleanKey16) const
