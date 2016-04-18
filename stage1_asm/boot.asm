@@ -178,13 +178,10 @@ find_disk:
   jc find_disk_end ;operation failed
 
   xor ax,ax
-  mov al, BYTE [disknum]
   mov dl, BYTE[curr_disk]
-  add BYTE [disknum], 1
   READ_SECTOR 0x8000, 55
   test ax,ax
   jz find_disk_end ; carry bit is set on read error
-   jz find_disk_end
    mov ax, WORD[0x8029]
    cmp ax, 0x7468 ;68 74 74 70
    jne find_disk_end
@@ -205,11 +202,9 @@ find_disk:
 enter_key db 13, 10, 0
 banner db 'Checking disks...', 13, 10, 0
 fin_banner db 'Press any key to boot from the disk', 13, 10, 0
-disknum db 0
 
 hd_label db '> Hard disk: ', 0
 floppy_label db '> Floppy: ', 0
-total_found db 'Checked: ', 0
 infected_found db 'PETYA detected in:', 13, 10, 0
 stage1_key db 'Stage1 key: ', 0
 stage1_failed db 'Could not recover stage 1 key.', 10,13,0
