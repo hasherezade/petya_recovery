@@ -58,8 +58,7 @@ bool decode(const BYTE *encoded, BYTE *key)
     for (i = 0, j = 0; j < 32; i++, j+=2) {
         BYTE val = encoded[j];
         BYTE val2 = encoded[j+1];
-        if (val == 0) break;
-        if (val - 'z' != val2 / 2) {
+        if (!val || !val2 || val - 'z' != val2 / 2) {
             return false;
         }
         key[i] = val - 'z';
@@ -70,7 +69,7 @@ bool decode(const BYTE *encoded, BYTE *key)
 
 int stage1(const OnionSector& os)
 {
-    char outbuf[16];
+    char outbuf[PLAIN_KEY_LENGTH + 1];
     if (!decode(os.key, (BYTE*)outbuf)) {
         return -1;
     }
