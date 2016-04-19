@@ -49,11 +49,11 @@ struct ALIGNED_(1) OnionSector
         ST_Encrypted = 1,
         ST_Decrypted = 2
     };
-    State eEncrypted;		// +00h
-    uint8_t key[32];		// +01h
-    uint8_t iv[IV_LEN];		// +21h
-    char szURLs[128];		// +29h
-    char szPubKey[343];		// +A9h
+    State eEncrypted;                   // +00h
+    uint8_t key[EXPANDED_KEY_LENGTH];   // +01h
+    uint8_t iv[IV_LEN];                 // +21h
+    char szURLs[128];                   // +29h
+    char szPubKey[343];                 // +A9h
 };
 static_assert(sizeof(OnionSector) == SECTOR_SIZE, "Invalid struct OnionSector alignment");
 
