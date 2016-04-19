@@ -1,4 +1,4 @@
-; mini bootloader for educational purposes
+; Bootloader detecting PETYA Ransomware and recovering Stage1 key
 ;
 ; CC-BY: hasherezade
 ;
@@ -56,6 +56,11 @@ pop si
  call read_sector
 %endmacro
 
+%macro CALC_CHECKSUM 2 ;buffer, length (in WORDs)
+ mov si, %1
+ mov cx, %2
+ call calc_checksum
+%endmacro
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;code
@@ -65,8 +70,6 @@ main:
  mov es,ax
  PRINT_STR banner
 
- CHECK_DISK 0
- CHECK_DISK 1
  CHECK_DISK 0x80
  CHECK_DISK 0x81
  PRINT_STR fin_banner
@@ -129,13 +132,7 @@ read_sector:
 ;AL -disk id
 print_disk_info:
  push ax
- cmp al, 0x80
- jnb _print_hd
- PRINT_STR floppy_label
- jmp label_printed
- _print_hd:
  PRINT_STR hd_label
- label_printed:
  pop ax
  and ax, 0x0F
  call print_byte
@@ -169,6 +166,24 @@ read_key:
  PRINT_STR enter_key
  ret
 
+; SI - buffer
+; CX - length
+calc_checksum:
+ push si
+ xor ax,ax
+ mov WORD[checksum], ax
+ calc_checksum_next:
+  test cx, cx
+  je end_calc_checksum
+   xor BYTE[checksum + 1], ah
+   lodsw
+   dec cx
+   add WORD[checksum], ax
+   jmp calc_checksum_next
+ end_calc_checksum:
+ pop si
+ ret
+
 ; DL - drive
 ; buffer pointer: 0x8000
 find_disk:
@@ -177,22 +192,31 @@ find_disk:
   int 0x13
   jc find_disk_end ;operation failed
 
-  xor ax,ax
-  mov dl, BYTE[curr_disk]
-  READ_SECTOR 0x8000, 55
-  test ax,ax
-  jz find_disk_end ; carry bit is set on read error
-   mov ax, WORD[0x8029]
-   cmp ax, 0x7468 ;68 74 74 70
-   jne find_disk_end
-   mov ax, WORD[0x8029+2]
-   cmp ax, 0x7074
-   jne find_disk_end
+   xor ax,ax
    mov dl, BYTE[curr_disk]
-   PRINT_STR infected_found
-   mov al, dl
-   call print_disk_info
-   call read_key
+   READ_SECTOR 0x8000, 1 ;read MBR
+   test ax,ax
+   jz find_disk_end ; read error
+
+    CALC_CHECKSUM 0x8000, 0x1a
+    cmp WORD[checksum], 0xF98C
+    jne find_disk_end
+
+     READ_SECTOR 0x8000, 55 ;read Petya's data sector
+     test ax, ax
+     jz find_disk_end ; read error
+
+      mov ax, WORD[0x8029] ; check HTTP pattern
+      cmp ax, 0x7468
+      jne find_disk_end
+       mov ax, WORD[0x8029+2]
+       cmp ax, 0x7074
+       jne find_disk_end
+
+        PRINT_STR infected_found
+        mov al, dl
+        call print_disk_info
+        call read_key
   find_disk_end:
   ret
 
@@ -203,11 +227,11 @@ enter_key db 13, 10, 0
 banner db 'Checking disks...', 13, 10, 0
 fin_banner db 'Press any key to boot from the disk', 13, 10, 0
 
-hd_label db '> Hard disk: ', 0
-floppy_label db '> Floppy: ', 0
-infected_found db 'PETYA detected in:', 13, 10, 0
+hd_label db 'Hard Disk ', 0
+infected_found db 'PETYA detected on: ', 0
 stage1_key db 'Stage1 key: ', 0
-stage1_failed db 'Could not recover stage 1 key.', 10,13,0
+stage1_failed db 'Could not recover Stage1 key.', 10,13,0
 curr_disk db 0
+checksum dw 0
 times 510-($-$$) db 0	;padding
 dw 0xAA55		;end signature
