@@ -191,7 +191,7 @@ struct Node
 class PetyaDecryptor
 {
 public:
-    PetyaDecryptor(const uint8_t iv[8], const ByteBuff& check)
+    PetyaDecryptor(const uint8_t iv[IV_LEN], const ByteBuff& check)
             : check_(check)
             , xorBuff_(check)
             , currXorBuffIdx_(0)
@@ -218,7 +218,7 @@ public:
         key_.tek[2] = ' ';
         key_.tek[3] = 'k';
 
-        memcpy(key_.iv, iv, 8);
+        memcpy(key_.iv, iv, IV_LEN);
 
         for (size_t i = 0, e = xorBuff_.size(); i < e; ++i)
             xorBuff_[i] ^= 0x37;
@@ -226,10 +226,10 @@ public:
 
     std::vector<uint16_t> getNthXorBuff(size_t n) const
     {
-        const size_t offset = n * 64;
-        std::vector<uint16_t> rv(16, 0);
+        const size_t offset = n * SALSA20_KEYSTREAM_CHUNK_SIZE;
+        std::vector<uint16_t> rv(BLOCK_SIZE_SHORTS, 0);
         const uint16_t* p = reinterpret_cast<const uint16_t*>(&xorBuff_[0] + offset);
-        for (int i = 0; i < 16; ++i, p += 2)
+        for (int i = 0; i < BLOCK_SIZE_SHORTS; ++i, p += 2)
             rv[i] = *p;
         return rv;
     }
@@ -278,7 +278,7 @@ public:
         const uint16_t* etalon = reinterpret_cast<uint16_t*>(&key_);
         std::vector<uint16_t> z(BLOCK_SIZE_SHORTS, 0);
 
-        for (int i = 0; i < 16; ++i, etalon += 2)
+        for (int i = 0; i < BLOCK_SIZE_SHORTS; ++i, etalon += 2)
         {
             z[i] = *etalon;
             tmp[i] = currXorBuff_[i] - *etalon;
@@ -379,7 +379,7 @@ public:
         if (lpExpandedCleanKey16)
             *lpExpandedCleanKey16 = cleanKey16;
 
-        std::vector<uint8_t> fullPetyaKey(32, 0);
+        std::vector<uint8_t> fullPetyaKey(EXPANDED_KEY_LENGTH, 0);
         for (unsigned i = 0; i < cleanKey16.size(); ++i)
         {
             fullPetyaKey[i * 2 + 0] = uint8_t(cleanKey16[i]) + 0x7a;
