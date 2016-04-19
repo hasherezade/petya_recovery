@@ -372,9 +372,10 @@ public:
 
     bool verifyKey(const std::string& key, std::string* lpExpandedCleanKey16) const
     {
+        const char padding_char = 'x';
         std::string cleanKey16 = key;
         for (int i = 0; i < KEY_LEN; ++i)
-            cleanKey16.insert(cleanKey16.begin() + KEY_LEN - i, kABC[rand() % kABCLen]);
+            cleanKey16.insert(cleanKey16.begin() + KEY_LEN - i, padding_char);
 
         if (lpExpandedCleanKey16)
             *lpExpandedCleanKey16 = cleanKey16;
