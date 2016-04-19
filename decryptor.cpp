@@ -360,12 +360,11 @@ public:
             }
         }
 
-        printf("[+] Finished, the best match is: ");
-        bestParent.print();
+        printf("[+] Key generation finished\n");
         std::string result;
         const bool ok = verifyKey(bestParent.genes, &result);
         if (ok)
-            printf("[+] Your key is found: %s\n", result.c_str());
+            printf("[+] YOUR KEY: %s\n", result.c_str());
 
         return ok;
     }
@@ -394,11 +393,11 @@ public:
         {
             if (bf[i] != '7')
             {
-                printf("[-] invalid key\n");
+                printf("[-] Validation failed\n");
                 return false;
             }
         }
-        printf("[+] Key is valid\n");
+        printf("[+] Validation passed\n");
         return true;
     }
 
