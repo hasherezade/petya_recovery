@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <cstddef>
 #include <cinttypes>
 #include "base64.h"
 #include "decryptor.h"
@@ -45,7 +46,7 @@ bool is_infected(FILE *fp)
     if (has_bootloader) printf("[+] Petya bootloader detected!\n");
 
     char http_pattern[] = "http://";
-    const size_t http_offset = 54 * SECTOR_SIZE + 0x29;
+    const size_t http_offset = ONION_SECTOR_NUM * SECTOR_SIZE + offsetof(OnionSector, szURLs);
     bool has_http = check_pattern(fp, http_offset, http_pattern, sizeof(http_pattern));
     if (has_http) printf("[+] Petya http address detected!\n");
 
@@ -55,11 +56,10 @@ bool is_infected(FILE *fp)
 bool decode(const BYTE *encoded, BYTE *key)
 {
     int i, j;
-    for (i = 0, j = 0; j < 32; i++, j+=2) {
+    for (i = 0, j = 0; j < EXPANDED_KEY_LENGTH; i++, j+=2) {
         BYTE val = encoded[j];
         BYTE val2 = encoded[j+1];
-        if (val == 0) break;
-        if (val - 'z' != val2 / 2) {
+        if (!val || !val2 || val - 'z' != val2 / 2) {
             return false;
         }
         key[i] = val - 'z';
@@ -70,7 +70,7 @@ bool decode(const BYTE *encoded, BYTE *key)
 
 int stage1(const OnionSector& os)
 {
-    char outbuf[16];
+    char outbuf[PLAIN_KEY_LENGTH + 1];
     if (!decode(os.key, (BYTE*)outbuf)) {
         return -1;
     }
