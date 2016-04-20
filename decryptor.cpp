@@ -3,6 +3,8 @@
 // Genetic algorithm taken from https://github.com/handcraftsman/GeneticPy
 
 #include "decryptor.h"
+#include "genetic.h"
+
 #include <iostream>
 #include <string>
 #include <stdint.h>
@@ -10,12 +12,12 @@
 #include <memory.h>
 #include <vector>
 
-#include "types.h"
 
 namespace {
 
-static const std::string kABC = "123456789abcdefghijkmnopqrstuvwxABCDEFGHJKLMNPQRSTUVWX";
-const size_t kABCLen = kABC.length();
+static const std::string petyaCharset = "123456789abcdefghijkmnopqrstuvwxABCDEFGHJKLMNPQRSTUVWX";
+//static const std::string kABC = "123456789abcdefghijkmnopqrstuvwxABCDEFGHJKLMNPQRSTUVWX";
+//const size_t kABCLen = kABC.length();
 
 static const unsigned char kBitsSetTable256[256] =
 {
@@ -162,39 +164,14 @@ bool s20_crypt_orig_256bit(const uint8_t *key, const uint8_t nonce[8], uint32_t 
 }
 
 
-struct Node
-{
-    enum Strategy
-    {
-        NS_Unknown,
-        NS_Random,
-        NS_Mutate,
-        NS_Crossover
-    };
-    char genes[KEY_LEN + 1];
-    int fitness;
-    Strategy strategy;
-
-    Node()
-        : fitness(0)
-        , strategy(NS_Unknown)
-    {
-        memset(genes, 0, sizeof(genes));
-    }
-
-    void print()
-    {
-        printf("%s %d\n", genes, fitness);
-    }
-};
-
-class PetyaDecryptor
+class PetyaDecryptor : public GeneticSolver
 {
 public:
     PetyaDecryptor(const uint8_t iv[IV_LEN], const ByteBuff& check)
-            : check_(check)
-            , xorBuff_(check)
-            , currXorBuffIdx_(0)
+            : GeneticSolver(petyaCharset, 128),
+            check_(check),
+            xorBuff_(check),
+            currXorBuffIdx_(0)
     {
         memset(&key_, 0, sizeof(key_));
 
@@ -291,74 +268,12 @@ public:
                           BLOCK_SIZE_SHORTS * sizeof(uint16_t));
     }
 
-    void generateParent(Node& rv)
-    {
-        rv.strategy = Node::NS_Random;
-        for (int i = 0; i < KEY_LEN; ++i)
-            rv.genes[i] = kABC[rand() % kABCLen];
-        rv.fitness = getFitness(rv);
-    }
-
-    void mutate(const Node& p, Node& c)
-    {
-        c = p;
-        c.genes[rand() % KEY_LEN] = kABC[rand() % kABCLen];
-
-        c.fitness = getFitness(c);
-        c.strategy = Node::NS_Mutate;
-    }
-
-    void crossover(const Node& p, const Node& bp, Node& c)
-    {
-        c = p;
-        const int idx = rand() % KEY_LEN;
-        c.genes[idx] = bp.genes[idx];
-        c.fitness = getFitness(c);
-        c.strategy = Node::NS_Crossover;
-    }
 
     bool brute()
     {
-        static const int kMaxAttempts = 128;
         currXorBuff_ = getNthXorBuff(0);
 
-        srand(time(NULL));
-
-        Node bestParent;
-        generateParent(bestParent);
-        bestParent.print();
-
-        while (bestParent.fitness > 0)
-        {
-            Node parent;
-            generateParent(parent);
-            int attempts = 0;
-
-            while (attempts < kMaxAttempts)
-            {
-                Node child;
-                if ((rand() % 100) / 50 == 0)
-                    mutate(parent, child);
-                else
-                    crossover(parent, bestParent, child);
-
-                if (child.fitness < parent.fitness)
-                {
-                    parent = child;
-                    attempts = 0;
-                }
-                attempts++;
-
-                if (parent.fitness < bestParent.fitness)
-                {
-                    Node tmp = bestParent;
-                    bestParent = parent;
-                    parent = tmp;
-
-                    bestParent.print();
-                }
-            }
-        }
+        GeneticSolver::brute();
 
         printf("[+] Key generation finished\n");
         std::string result;

@@ -4,10 +4,12 @@ project (petya_recovery)
 set (hdrs
 	base64.h
 	decryptor.h
+	genetic.h
 	types.h)
 
 set (srcs
 	base64.c
+	genetic.cpp
 	main.cpp
 	decryptor.cpp)
 
