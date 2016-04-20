@@ -1,8 +1,9 @@
 #include "genetic.h"
+// Author of implementation: AlexWMF
+// Genetic algorithm taken from https://github.com/handcraftsman/GeneticPy
 
 void GeneticSolver::generateParent(Node& rv)
 {
-    rv.strategy = Node::NS_Random;
     for (int i = 0; i < KEY_LEN; ++i)
         rv.genes[i] = kABC[rand() % kABCLen];
     rv.fitness = getFitness(rv);
@@ -14,7 +15,6 @@ void GeneticSolver::mutate(const Node& p, Node& c)
     c.genes[rand() % KEY_LEN] = kABC[rand() % kABCLen];
 
     c.fitness = getFitness(c);
-    c.strategy = Node::NS_Mutate;
 }
 
 void GeneticSolver::crossover(const Node& p, const Node& bp, Node& c)
@@ -23,7 +23,6 @@ void GeneticSolver::crossover(const Node& p, const Node& bp, Node& c)
     const int idx = rand() % KEY_LEN;
     c.genes[idx] = bp.genes[idx];
     c.fitness = getFitness(c);
-    c.strategy = Node::NS_Crossover;
 }
 
 bool GeneticSolver::brute()

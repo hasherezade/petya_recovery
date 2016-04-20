@@ -7,24 +7,15 @@
 #include <stdint.h>
 #include <ctime>
 #include <memory.h>
-#include <vector>
 
-struct Node
+class Node
 {
-    enum Strategy
-    {
-        NS_Unknown,
-        NS_Random,
-        NS_Mutate,
-        NS_Crossover
-    };
+public:
     char genes[KEY_LEN + 1];
     int fitness;
-    Strategy strategy;
 
     Node()
-        : fitness(0),
-        strategy(NS_Unknown)
+        : fitness(0)
     {
         memset(genes, 0, sizeof(genes));
     }
