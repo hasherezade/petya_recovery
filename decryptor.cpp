@@ -16,8 +16,6 @@
 namespace {
 
 static const std::string petyaCharset = "123456789abcdefghijkmnopqrstuvwxABCDEFGHJKLMNPQRSTUVWX";
-//static const std::string kABC = "123456789abcdefghijkmnopqrstuvwxABCDEFGHJKLMNPQRSTUVWX";
-//const size_t kABCLen = kABC.length();
 
 static const unsigned char kBitsSetTable256[256] =
 {

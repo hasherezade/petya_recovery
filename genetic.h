@@ -23,8 +23,8 @@ struct Node
     Strategy strategy;
 
     Node()
-        : fitness(0)
-        , strategy(NS_Unknown)
+        : fitness(0),
+        strategy(NS_Unknown)
     {
         memset(genes, 0, sizeof(genes));
     }
@@ -40,9 +40,7 @@ class GeneticSolver
 public:
     GeneticSolver(std::string genes, int maxAttempts)
         : kABC(genes), kMaxAttempts(maxAttempts), kABCLen(kABC.length())
-        {
-            //kABCLen = kABC.length();
-        }
+        { }
 
     bool brute();
     //---
