@@ -1,50 +1,38 @@
 #pragma once
 
 #include "types.h"
-
-#include <iostream>
+#include <functional>
 #include <string>
-#include <stdint.h>
-#include <ctime>
-#include <memory.h>
 
-class Node
-{
-public:
-    char genes[KEY_LEN + 1];
-    int fitness;
-
-    Node()
-        : fitness(0)
-    {
-        memset(genes, 0, sizeof(genes));
-    }
-
-    void print()
-    {
-        printf("%s %d\n", genes, fitness);
-    }
-};
+// fwd
+struct Node;
+typedef std::function<int (const std::string& genes)> GetFitness_t;
+typedef std::function<bool (int fitness)> IsFinishedCmp_t;
+typedef std::function<bool (int oldFitness, int newFitness)> IsBetterCmt_t;
 
 class GeneticSolver
 {
 public:
-    GeneticSolver(std::string genes, int maxAttempts)
-        : kABC(genes), kMaxAttempts(maxAttempts), kABCLen(kABC.length())
-        { }
+    GeneticSolver(const std::string& genes,
+                  int outputLen,
+                  int maxAttempts,
+                  GetFitness_t fnGetFitness,
+                  IsFinishedCmp_t fnIsFinishedCmp,
+                  IsBetterCmt_t fnIsBetterCmp);
 
-    bool brute();
-    //---
-    Node bestParent;
+    bool brute(std::string& result);
 
-protected:
-    virtual int getFitness(const Node& node) = 0;
-
+private:
     void generateParent(Node& rv);
     void mutate(const Node& p, Node& c);
     void crossover(const Node& p, const Node& bp, Node& c);
-    //---
-    const int kMaxAttempts;
-    const std::string kABC;
-    const size_t kABCLen;
+
+private:
+    const int MaxAttempts_;
+    const std::string Genes_;
+    const int OutputLen_;
+
+    GetFitness_t GetFitness_;
+    IsFinishedCmp_t IsFinishedCmp_;
+    IsBetterCmt_t IsBetterCmp_;
 };
