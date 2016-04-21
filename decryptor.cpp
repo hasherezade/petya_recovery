@@ -14,7 +14,7 @@
 
 namespace {
 
-static const std::string petyaCharset = "123456789abcdefghijkmnopqrstuvwxABCDEFGHJKLMNPQRSTUVWX";
+static const std::string kPetyaCharset = "123456789abcdefghijkmnopqrstuvwxABCDEFGHJKLMNPQRSTUVWX";
 
 static const unsigned char kBitsSetTable256[256] =
 {
@@ -161,14 +161,13 @@ bool s20_crypt_orig_256bit(const uint8_t *key, const uint8_t nonce[8], uint32_t 
 }
 
 
-class PetyaDecryptor : public GeneticSolver
+class PetyaDecryptor
 {
 public:
     PetyaDecryptor(const uint8_t iv[IV_LEN], const ByteBuff& check)
-            : GeneticSolver(petyaCharset, 128),
-            check_(check),
-            xorBuff_(check),
-            currXorBuffIdx_(0)
+            : check_(check)
+            , xorBuff_(check)
+            , currXorBuffIdx_(0)
     {
         memset(&key_, 0, sizeof(key_));
 
@@ -235,7 +234,7 @@ public:
         key.keyPart2[12 + 1] = ch8 * 2;
     }
 
-    int getBitDiff(const uint8_t* bf1, const uint8_t* bf2, int len) const
+    static int getBitDiff(const uint8_t* bf1, const uint8_t* bf2, int len)
     {
         int rv = 0;
         for (int i = 0; i < len; ++i, ++bf1, ++bf2)
@@ -243,38 +242,47 @@ public:
         return rv;
     }
 
-    int getFitness(const Node& node)
-    {
-        fillKey(key_, node.genes[0], node.genes[1], node.genes[2], node.genes[3], node.genes[4], node.genes[5], node.genes[6],
-                node.genes[7]);
-
-        std::vector<uint16_t> tmp(BLOCK_SIZE_SHORTS, 0);
-        const uint16_t* etalon = reinterpret_cast<uint16_t*>(&key_);
-        std::vector<uint16_t> z(BLOCK_SIZE_SHORTS, 0);
-
-        for (int i = 0; i < BLOCK_SIZE_SHORTS; ++i, etalon += 2)
-        {
-            z[i] = *etalon;
-            tmp[i] = currXorBuff_[i] - *etalon;
-        }
-
-        for (int i = 0; i < 10; ++i)
-            s20_doubleround(&z[0]);
-
-        return getBitDiff(reinterpret_cast<const uint8_t*>(&z[0]), reinterpret_cast<const uint8_t*>(&tmp[0]),
-                          BLOCK_SIZE_SHORTS * sizeof(uint16_t));
-    }
-
-
     bool brute()
     {
         currXorBuff_ = getNthXorBuff(0);
 
-        GeneticSolver::brute();
+        auto fnGetFitness = [this](const std::string& genes)
+        {
+            fillKey(key_, genes[0], genes[1], genes[2], genes[3], genes[4], genes[5], genes[6],
+                    genes[7]);
+
+            std::vector<uint16_t> tmp(BLOCK_SIZE_SHORTS, 0);
+            const uint16_t* etalon = reinterpret_cast<uint16_t*>(&key_);
+            std::vector<uint16_t> z(BLOCK_SIZE_SHORTS, 0);
+
+            for (int i = 0; i < BLOCK_SIZE_SHORTS; ++i, etalon += 2)
+            {
+                z[i] = *etalon;
+                tmp[i] = currXorBuff_[i] - *etalon;
+            }
+
+            for (int i = 0; i < 10; ++i)
+                s20_doubleround(&z[0]);
+
+            return getBitDiff(reinterpret_cast<const uint8_t*>(&z[0]), reinterpret_cast<const uint8_t*>(&tmp[0]),
+                              BLOCK_SIZE_SHORTS * sizeof(uint16_t));
+        };
+
+        auto fnIsBetter = [](int oldFitness, int newFitness) {
+            return newFitness < oldFitness;
+        };
+
+        auto fnIsFinished = [](int fitness) {
+            return fitness <= 0;
+        };
+
+        GeneticSolver solver {kPetyaCharset, KEY_LEN, 128, fnGetFitness, fnIsFinished, fnIsBetter};
+        std::string key;
+        solver.brute(key);
 
         printf("[+] Key generation finished\n");
         std::string result;
-        const bool ok = verifyKey(bestParent.genes, &result);
+        const bool ok = verifyKey(key, &result);
         if (ok)
             printf("[+] YOUR KEY: %s\n", result.c_str());
 
@@ -301,9 +309,9 @@ public:
         ByteBuff bf(check_);
         s20_crypt_orig_256bit(&fullPetyaKey[0], key_.iv, 0, &bf[0], static_cast<uint32_t>(bf.size()));
 
-        for (int i = 0; i < bf.size(); ++i)
+        for (char c : bf)
         {
-            if (bf[i] != '7')
+            if (c != '7')
             {
                 printf("[-] Validation failed\n");
                 return false;

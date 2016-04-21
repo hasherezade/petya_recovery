@@ -90,18 +90,15 @@ bool fetch_veribuf(FILE *fp, ByteBuff& verifyBuff, size_t size)
     return read == 1;
 }
 
-int stage2(const ByteBuff& veribuf, const OnionSector& os)
+void stage2(const ByteBuff& veribuf, const OnionSector& os)
 {
-    {
-        printf("\nverification data:\n");
-        Base64encode(out_buf, reinterpret_cast<const char*>(&veribuf[0]), SECTOR_SIZE);
-        printf("%s\n", out_buf);
-    }
-    {
-        printf("\nnonce:\n");
-        Base64encode(out_buf, reinterpret_cast<const char*>(os.iv), IV_LEN);
-        printf("%s\n", out_buf);
-    }
+    printf("\nverification data:\n");
+    Base64encode(out_buf, reinterpret_cast<const char*>(&veribuf[0]), SECTOR_SIZE);
+    printf("%s\n", out_buf);
+
+    printf("\nnonce:\n");
+    Base64encode(out_buf, reinterpret_cast<const char*>(os.iv), IV_LEN);
+    printf("%s\n", out_buf);
 }
 
 bool check_onion_sector_is_no_need_to_brute(const OnionSector& os)
