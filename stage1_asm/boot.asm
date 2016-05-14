@@ -28,9 +28,11 @@ pop si
 %endmacro
 
 %macro PUTC 0
+  push bx
   mov ah, 0x0E
   mov bx, 0x11
   int 0x10
+  pop bx
 %endmacro
 
 %macro GET_STR 1 ;buffer
@@ -118,8 +120,8 @@ read_sector:
   mov bx, di ; buffer
   mov ah, 0x02 ; read
   mov al, 0x01 ; sector count
-  mov dh, 0x00 ; head
-  mov ch, 0x00 ; track
+  xor dh,dh ; head
+  xor ch, ch ; track
   int 0x13
   xor ax,ax
   jnc read_success
@@ -142,25 +144,51 @@ print_disk_info:
 read_key:
  ;READ_SECTOR 0x8000, 55
  PRINT_STR stage1_key
+
+ xor dx,dx
+ xor ax,ax
  mov si, 0x8001
  mov cx, 32
+
  key_next_char:
  test cx,cx
  jz key_end
   mov al, BYTE [si]
+  inc si
+  dec cx
+
+  cmp dh,1
+  je skip_algo1
+
   sub al, 'z'
-  dec cx
+  mov ah, BYTE[si]
+  shr ah, 1
   inc si
-  mov bl, BYTE[si]
-  shr bl, 1
   dec cx
-  inc si
-  cmp al, bl
+
+  cmp al, ah
   jnz stage1_key_failed
+
+  skip_algo1:
+  cmp al, 0x20
+  jle stage1_key_failed
+  cmp al, 0x7b
+  jae stage1_key_failed
   PUTC
   jmp key_next_char
+
  stage1_key_failed:
  PRINT_STR enter_key
+;try to apply algo for petya2:
+ cmp dh,1
+ jae search_failed
+ inc dh
+ xor ax,ax
+ mov si, 0x8001
+ mov cx, 16 ; lenght for algo2
+ jmp key_next_char
+
+ search_failed:
  PRINT_STR stage1_failed
  key_end:
  PRINT_STR enter_key
@@ -232,6 +260,7 @@ infected_found db 'PETYA detected on: ', 0
 stage1_key db 'Stage1 key: ', 0
 stage1_failed db 'Could not recover Stage1 key.', 10,13,0
 curr_disk db 0
+variant db 0
 checksum dw 0
 times 510-($-$$) db 0	;padding
 dw 0xAA55		;end signature
