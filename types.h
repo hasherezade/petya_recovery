@@ -1,5 +1,4 @@
-#ifndef PETYA_RECOVERY_TYPES_H
-#define PETYA_RECOVERY_TYPES_H
+#pragma once
 // Author: AlexWMF
 
 #include <stdint.h>
@@ -59,4 +58,3 @@ static_assert(sizeof(OnionSector) == SECTOR_SIZE, "Invalid struct OnionSector al
 
 typedef std::vector<uint8_t> ByteBuff;
 
-#endif //PETYA_RECOVERY_TYPES_H

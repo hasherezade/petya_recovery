@@ -4,19 +4,23 @@ project (petya_recovery)
 set (hdrs
 	base64.h
 	decryptor.h
+	genetic.h
 	types.h)
 
 set (srcs
 	base64.c
+	genetic.cpp
 	main.cpp
 	decryptor.cpp)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-SET(BUILD_SHARED_LIBRARIES OFF)
-SET(CMAKE_EXE_LINKER_FLAGS "-static")
+IF (NOT APPLE)
+    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+    SET(BUILD_SHARED_LIBRARIES OFF)
+    SET(CMAKE_EXE_LINKER_FLAGS "-static")
+ENDIF(NOT APPLE)
 
 option (OUT_32BIT "Build 32-bit executable" OFF)
 

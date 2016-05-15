@@ -3,19 +3,18 @@
 // Genetic algorithm taken from https://github.com/handcraftsman/GeneticPy
 
 #include "decryptor.h"
+#include "genetic.h"
+
 #include <iostream>
 #include <string>
 #include <stdint.h>
-#include <ctime>
 #include <memory.h>
 #include <vector>
 
-#include "types.h"
 
 namespace {
 
-static const std::string kABC = "123456789abcdefghijkmnopqrstuvwxABCDEFGHJKLMNPQRSTUVWX";
-const size_t kABCLen = kABC.length();
+static const std::string kPetyaCharset = "123456789abcdefghijkmnopqrstuvwxABCDEFGHJKLMNPQRSTUVWX";
 
 static const unsigned char kBitsSetTable256[256] =
 {
@@ -162,32 +161,6 @@ bool s20_crypt_orig_256bit(const uint8_t *key, const uint8_t nonce[8], uint32_t 
 }
 
 
-struct Node
-{
-    enum Strategy
-    {
-        NS_Unknown,
-        NS_Random,
-        NS_Mutate,
-        NS_Crossover
-    };
-    char genes[KEY_LEN + 1];
-    int fitness;
-    Strategy strategy;
-
-    Node()
-        : fitness(0)
-        , strategy(NS_Unknown)
-    {
-        memset(genes, 0, sizeof(genes));
-    }
-
-    void print()
-    {
-        printf("%s %d\n", genes, fitness);
-    }
-};
-
 class PetyaDecryptor
 {
 public:
@@ -261,7 +234,7 @@ public:
         key.keyPart2[12 + 1] = ch8 * 2;
     }
 
-    int getBitDiff(const uint8_t* bf1, const uint8_t* bf2, int len) const
+    static int getBitDiff(const uint8_t* bf1, const uint8_t* bf2, int len)
     {
         int rv = 0;
         for (int i = 0; i < len; ++i, ++bf1, ++bf2)
@@ -269,100 +242,47 @@ public:
         return rv;
     }
 
-    int getFitness(const Node& node)
-    {
-        fillKey(key_, node.genes[0], node.genes[1], node.genes[2], node.genes[3], node.genes[4], node.genes[5], node.genes[6],
-                node.genes[7]);
-
-        std::vector<uint16_t> tmp(BLOCK_SIZE_SHORTS, 0);
-        const uint16_t* etalon = reinterpret_cast<uint16_t*>(&key_);
-        std::vector<uint16_t> z(BLOCK_SIZE_SHORTS, 0);
-
-        for (int i = 0; i < BLOCK_SIZE_SHORTS; ++i, etalon += 2)
-        {
-            z[i] = *etalon;
-            tmp[i] = currXorBuff_[i] - *etalon;
-        }
-
-        for (int i = 0; i < 10; ++i)
-            s20_doubleround(&z[0]);
-
-        return getBitDiff(reinterpret_cast<const uint8_t*>(&z[0]), reinterpret_cast<const uint8_t*>(&tmp[0]),
-                          BLOCK_SIZE_SHORTS * sizeof(uint16_t));
-    }
-
-    void generateParent(Node& rv)
-    {
-        rv.strategy = Node::NS_Random;
-        for (int i = 0; i < KEY_LEN; ++i)
-            rv.genes[i] = kABC[rand() % kABCLen];
-        rv.fitness = getFitness(rv);
-    }
-
-    void mutate(const Node& p, Node& c)
-    {
-        c = p;
-        c.genes[rand() % KEY_LEN] = kABC[rand() % kABCLen];
-
-        c.fitness = getFitness(c);
-        c.strategy = Node::NS_Mutate;
-    }
-
-    void crossover(const Node& p, const Node& bp, Node& c)
-    {
-        c = p;
-        const int idx = rand() % KEY_LEN;
-        c.genes[idx] = bp.genes[idx];
-        c.fitness = getFitness(c);
-        c.strategy = Node::NS_Crossover;
-    }
-
     bool brute()
     {
-        static const int kMaxAttempts = 128;
         currXorBuff_ = getNthXorBuff(0);
 
-        srand(time(NULL));
-
-        Node bestParent;
-        generateParent(bestParent);
-        bestParent.print();
-
-        while (bestParent.fitness > 0)
+        auto fnGetFitness = [this](const std::string& genes)
         {
-            Node parent;
-            generateParent(parent);
-            int attempts = 0;
+            fillKey(key_, genes[0], genes[1], genes[2], genes[3], genes[4], genes[5], genes[6],
+                    genes[7]);
 
-            while (attempts < kMaxAttempts)
+            std::vector<uint16_t> tmp(BLOCK_SIZE_SHORTS, 0);
+            const uint16_t* etalon = reinterpret_cast<uint16_t*>(&key_);
+            std::vector<uint16_t> z(BLOCK_SIZE_SHORTS, 0);
+
+            for (int i = 0; i < BLOCK_SIZE_SHORTS; ++i, etalon += 2)
             {
-                Node child;
-                if ((rand() % 100) / 50 == 0)
-                    mutate(parent, child);
-                else
-                    crossover(parent, bestParent, child);
-
-                if (child.fitness < parent.fitness)
-                {
-                    parent = child;
-                    attempts = 0;
-                }
-                attempts++;
-
-                if (parent.fitness < bestParent.fitness)
-                {
-                    Node tmp = bestParent;
-                    bestParent = parent;
-                    parent = tmp;
-
-                    bestParent.print();
-                }
+                z[i] = *etalon;
+                tmp[i] = currXorBuff_[i] - *etalon;
             }
-        }
+
+            for (int i = 0; i < 10; ++i)
+                s20_doubleround(&z[0]);
+
+            return getBitDiff(reinterpret_cast<const uint8_t*>(&z[0]), reinterpret_cast<const uint8_t*>(&tmp[0]),
+                              BLOCK_SIZE_SHORTS * sizeof(uint16_t));
+        };
+
+        auto fnIsBetter = [](int oldFitness, int newFitness) {
+            return newFitness < oldFitness;
+        };
+
+        auto fnIsFinished = [](int fitness) {
+            return fitness <= 0;
+        };
+
+        GeneticSolver solver {kPetyaCharset, KEY_LEN, 128, fnGetFitness, fnIsFinished, fnIsBetter};
+        std::string key;
+        solver.brute(key);
 
         printf("[+] Key generation finished\n");
         std::string result;
-        const bool ok = verifyKey(bestParent.genes, &result);
+        const bool ok = verifyKey(key, &result);
         if (ok)
             printf("[+] YOUR KEY: %s\n", result.c_str());
 
@@ -389,9 +309,9 @@ public:
         ByteBuff bf(check_);
         s20_crypt_orig_256bit(&fullPetyaKey[0], key_.iv, 0, &bf[0], static_cast<uint32_t>(bf.size()));
 
-        for (int i = 0; i < bf.size(); ++i)
+        for (char c : bf)
         {
-            if (bf[i] != '7')
+            if (c != '7')
             {
                 printf("[-] Validation failed\n");
                 return false;
