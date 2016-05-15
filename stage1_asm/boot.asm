@@ -260,7 +260,6 @@ infected_found db 'PETYA detected on: ', 0
 stage1_key db 'Stage1 key: ', 0
 stage1_failed db 'Could not recover Stage1 key.', 10,13,0
 curr_disk db 0
-variant db 0
 checksum dw 0
 times 510-($-$$) db 0	;padding
 dw 0xAA55		;end signature
