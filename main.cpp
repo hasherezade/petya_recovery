@@ -53,7 +53,7 @@ bool is_infected(FILE *fp)
     return has_bootloader || has_http;
 }
 
-bool decode(const BYTE *encoded, BYTE *key)
+bool get_stage1_red(const BYTE *encoded, BYTE *key)
 {
     int i, j;
     for (i = 0, j = 0; j < EXPANDED_KEY_LENGTH; i++, j+=2) {
@@ -68,11 +68,27 @@ bool decode(const BYTE *encoded, BYTE *key)
     return true;
 }
 
+bool get_stage1_green(const BYTE *encoded, BYTE *key)
+{
+    int i;
+    for (i = 0; i < EXPANDED_KEY_LENGTH/2; i++) {
+        BYTE val = encoded[i];
+        if (val <= 0x20 || val >= 0x7b) {
+            return false;
+        }
+        key[i] = val;
+    }
+    key[i] = 0;
+    return true;
+}
+
 int stage1(const OnionSector& os)
 {
     char outbuf[PLAIN_KEY_LENGTH + 1];
-    if (!decode(os.key, (BYTE*)outbuf)) {
-        return -1;
+    if (!get_stage1_red(os.key, (BYTE*)outbuf)) {
+        if (!get_stage1_green(os.key, (BYTE*)outbuf)) {
+            return -1;
+        }
     }
     if (strlen(outbuf) != 16) {
         return -2;
