@@ -3,15 +3,18 @@ project (petya_recovery)
 
 set (hdrs
 	base64.h
+	salsa.h
 	decryptor.h
 	genetic.h
 	types.h)
 
 set (srcs
 	base64.c
+	salsa.cpp
 	genetic.cpp
+	decryptor.cpp
 	main.cpp
-	decryptor.cpp)
+	)
 
 #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
