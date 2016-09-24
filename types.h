@@ -17,7 +17,7 @@
 #define SECTOR_SIZE 0x200
 #define KEY_LEN 8
 #define PLAIN_KEY_LENGTH 16
-#define EXPANDED_KEY_LENGTH 32
+#define EXPANDED_KEY_LENGTH 16
 #define BLOCK_SIZE_SHORTS 16
 #define IV_LEN 8
 #define CHECK_BUFFER_SECTOR_NUM 55
@@ -33,10 +33,12 @@ struct ALIGNED_(1) OnionSector
     };
     State eEncrypted;                   // +00h
     uint8_t key[EXPANDED_KEY_LENGTH];   // +01h
+    uint8_t padding[16];
     uint8_t iv[IV_LEN];                 // +21h
     char szURLs[128];                   // +29h
     char szPubKey[343];                 // +A9h
 };
+
 static_assert(sizeof(OnionSector) == SECTOR_SIZE, "Invalid struct OnionSector alignment");
 
 typedef std::vector<uint8_t> ByteBuff;

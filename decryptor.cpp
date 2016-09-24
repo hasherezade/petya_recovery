@@ -12,8 +12,7 @@
 #include <memory.h>
 #include <vector>
 
-#define VERIF_CHAR 0x37
-
+#define VERIF_CHAR 0x07
 
 namespace {
 
@@ -67,13 +66,21 @@ public:
         return unmatching;
     }
 
-    std::string makeUserKey(const std::string& key)
+    std::string makeUserKey(const std::string& keyStr)
     {
         const char padding_char = 'x';
-        std::string cleanKey16 = key;
-        for (int i = 0; i < KEY_LEN; ++i)
-            cleanKey16.insert(cleanKey16.begin() + KEY_LEN - i, padding_char);
-        return cleanKey16;
+        char key[EXPANDED_KEY_LENGTH + 1];
+        memset(key, 'x', EXPANDED_KEY_LENGTH);
+
+        for (int i = 0, j = 0; i < EXPANDED_KEY_LENGTH; i+=4, j+=2) {
+            static size_t rand_i1 = 0;
+            static size_t rand_i2 = 0;
+            key[i] = keyStr[j];
+            key[i+1] = keyStr[j+1];
+        }
+        key[EXPANDED_KEY_LENGTH] = 0;
+
+        return key;
     }
 
     std::vector<uint8_t> makeFullPetyaKey(const std::string& cleanKey16)
@@ -81,8 +88,7 @@ public:
         std::vector<uint8_t> fullPetyaKey(EXPANDED_KEY_LENGTH, 0);
         for (unsigned i = 0; i < cleanKey16.size(); ++i)
         {
-            fullPetyaKey[i * 2 + 0] = uint8_t(cleanKey16[i]) + 0x7a;
-            fullPetyaKey[i * 2 + 1] = uint8_t(cleanKey16[i]) * 2;
+            fullPetyaKey[i] = uint8_t(cleanKey16[i]);
         }
         return fullPetyaKey;
     }
@@ -93,8 +99,14 @@ public:
         std::vector<uint8_t> fullPetyaKey = makeFullPetyaKey(cleanKey16);
 
         ByteBuff bf(check_);
-        s20_crypt_256bit(&fullPetyaKey[0], iv_, 0, &bf[0], static_cast<uint32_t>(bf.size()));
-        return unmatching_count(bf);
+        //printf("Key: %s\n", cleanKey16.c_str());
+        if (s20_crypt(&fullPetyaKey[0], S20_KEYLEN_128, iv_, 0, &bf[0], bf.size()) == S20_FAILURE) {
+            printf("[ERROR] Cannot encrypt!\n");
+            return -1;
+        }
+        size_t count = unmatching_count(bf);
+        //printf("unmatching: %d\n", count);
+        return count;
     }
 
 private:

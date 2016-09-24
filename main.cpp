@@ -15,6 +15,15 @@ typedef unsigned char BYTE;
 
 char out_buf[0x400];
 
+void hexdump(uint8_t* in_buf, const size_t in_size)
+{
+    for (int i = 0; i < in_size; i++) {
+        printf("%02x ", (uint8_t) in_buf[i]);
+        if ((i + 1) % 16 == 0) printf("\n");
+    }
+    printf("\n");
+}
+
 bool check_pattern(FILE *fp, size_t offset, const char *cmp_buf, size_t cmp_size)
 {
     cmp_size = (cmp_size > sizeof(out_buf)) ? sizeof(out_buf) : cmp_size;
@@ -159,6 +168,9 @@ int main(int argc, char *argv[])
     }
     printf("---\n");
 
+    printf("\nnonce:\n");
+    hexdump(os.iv, IV_LEN);
+    printf("---\n");
     if (check_onion_sector_is_no_need_to_brute(os))
     {
         fclose(fp);
@@ -167,6 +179,10 @@ int main(int argc, char *argv[])
     ByteBuff verifyBuff(SECTOR_SIZE, 0);
     fetch_veribuf(fp, verifyBuff, SECTOR_SIZE);
     fclose(fp);
+
+    printf("\nveriBuf:\n");
+    hexdump(&verifyBuff[0], SECTOR_SIZE);
+    printf("---\n");
 
     char key[PLAIN_KEY_LENGTH + 1] = {};
     printf("[+] Trying to decrypt... Please be patient...\n");
