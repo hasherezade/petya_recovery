@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project (petya_recovery)
+project (petya_green_genetic)
 
 set (hdrs
 	base64.h
@@ -41,4 +41,4 @@ IF (OUT_32BIT)
 ENDIF(OUT_32BIT)
 
 MESSAGE( STATUS "CMAKE_CXX_FLAGS=" ${CMAKE_CXX_FLAGS} )
-add_executable (petya_recovery ${hdrs} ${srcs})
+add_executable (petya_green_genetic ${hdrs} ${srcs})
