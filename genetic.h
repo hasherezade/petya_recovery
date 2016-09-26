@@ -36,3 +36,5 @@ private:
     IsFinishedCmp_t IsFinishedCmp_;
     IsBetterCmt_t IsBetterCmp_;
 };
+
+bool verifyKey(const std::string& key, std::string* lpExpandedCleanKey16);

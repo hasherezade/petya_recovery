@@ -6,17 +6,18 @@
 #include <stdint.h>
 #include <ctime>
 #include <memory.h>
+#include <limits.h>
 
-
+#include "decryptor.h"
 struct Node
 {
     std::string genes;
-    int fitness;
+    uint32_t fitness;
 
     Node() = delete;
 
     explicit Node(int len)
-        : fitness(0)
+        : fitness(UINT32_MAX)
         , genes(len, '\0')
     {
     }
@@ -26,7 +27,6 @@ struct Node
         printf("%s %d\n", genes.c_str(), fitness);
     }
 };
-
 
 
 GeneticSolver::GeneticSolver(const std::string& genes,
@@ -100,6 +100,7 @@ bool GeneticSolver::brute(std::string& result)
             {
                 std::swap(bestParent, parent);
                 bestParent.print();
+                if (bestParent.fitness == 0) break;
             }
         }
     }
